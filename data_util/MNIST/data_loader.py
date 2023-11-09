@@ -119,8 +119,11 @@ def partition_data_dataset(X_train,y_train, n_nets, alpha):
     min_size = 0
     K = 10
     N = y_train.shape[0]
+    # 追加一个额外的客户作为公共服务器训练数据
+    n_nets = n_nets + 1
     logging.info("N = " + str(N))
     net_dataidx_map = {}
+    public_ditaidx_map = {}
 
     while min_size < 10:
         #print(min_size)
@@ -154,7 +157,8 @@ def partition_data_dataset(X_train,y_train, n_nets, alpha):
     for j in range(n_nets):
         np.random.shuffle(idx_batch[j])
         net_dataidx_map[j] = idx_batch[j]
-    return net_dataidx_map
+    public_ditaidx_map[0] = idx_batch[n_nets - 1]
+    return net_dataidx_map, public_ditaidx_map
 
 
 def partition_data(dataset, datadir, partition, n_nets, alpha):
@@ -174,8 +178,8 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
         net_dataidx_map_test={i: batch_idxs_test[i] for i in range(n_nets)}
 
     elif partition == "hetero":#在此处分割数据
-        net_dataidx_map_train=partition_data_dataset(X_train,y_train,n_nets,alpha)
-        net_dataidx_map_test=partition_data_dataset(X_test,y_test,n_nets,alpha)
+        net_dataidx_map_train, public_dataidx_map_train=partition_data_dataset(X_train,y_train,n_nets,alpha)
+        net_dataidx_map_test, public_dataidx_map_test =partition_data_dataset(X_test,y_test,n_nets,alpha)
 
 
         #print(net_dataidx_map_test[0])
@@ -194,7 +198,7 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
     else:
         raise Exception("partition args error")
 
-    return X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test
+    return X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test, public_dataidx_map_train, public_dataidx_map_test
 
 
 
@@ -306,7 +310,7 @@ def load_mnist_data(datadir):
     return (X_train, y_train, X_test, y_test)
 
 def load_partition_data_mnist(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
-    X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test = partition_data(dataset,
+    X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test, public_dataidx_map_train, public_dataidx_map_test = partition_data(dataset,
                                                                                              data_dir,
                                                                                              partition_method,
                                                                                              client_number,
@@ -326,6 +330,9 @@ def load_partition_data_mnist(dataset, data_dir, partition_method, partition_alp
     data_local_num_dict_test = dict()
     train_data_local_dict = dict()
     test_data_local_dict = dict()
+    # 公共数据的训练和测试字典
+    public_train_data_local_dict = dict()
+    public_test_data_local_dict = dict()
 
     for client_idx in range(client_number):
         dataidxs_train = net_dataidx_map_train[client_idx]
@@ -351,10 +358,15 @@ def load_partition_data_mnist(dataset, data_dir, partition_method, partition_alp
         train_data_local_dict[client_idx] = train_data_local
         test_data_local_dict[client_idx] = test_data_local
 
+    # 分配公共数据的字典
+    public_train_data, public_test_data = get_dataloader(dataset, data_dir, batch_size, batch_size,
+                                                         public_dataidx_map_train[0], public_dataidx_map_test[0])
 
+    public_train_data_local_dict[0] = public_train_data
+    public_test_data_local_dict[0] = public_test_data
         
     return train_data_num, test_data_num, train_data_global, test_data_global, \
-           data_local_num_dict_train, data_local_num_dict_test,train_data_local_dict, test_data_local_dict, class_num_train,class_num_test
+           data_local_num_dict_train, data_local_num_dict_test,train_data_local_dict, test_data_local_dict, class_num_train,class_num_test, public_train_data_local_dict, public_test_data_local_dict
 
 
 

@@ -223,6 +223,7 @@ def load_partition_data_FashionMNIST(dataset, data_dir, partition_method, partit
     data_local_num_dict_test = dict()
     train_data_local_dict = dict()
     test_data_local_dict = dict()
+    #公共数据的训练和测试字典
     public_train_data_local_dict = dict()
     public_test_data_local_dict = dict()
 
