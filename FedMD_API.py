@@ -52,7 +52,7 @@ def get_fedmd_argparser(args) -> ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.set_defaults(**vars(args))
     parser.add_argument("--digest_epoch", type=int, default=1)
-    parser.add_argument("--local_epoch", type=int, default=5)
+    parser.add_argument("--local_epoch", type=int, default=1)
     parser.add_argument("--public_epoch", type=int, default=1)
     return parser
 
@@ -123,7 +123,7 @@ class FedMD_standalone_API:
                 # 如果不存在保存的参数，加载并覆盖初始参数
                 model_params = model.state_dict()
                 torch.save(model_params, model_params_file)
-
+            print("开始公共训练第" + str(client_index) + "个客户端")
             model.to(self.device)
             model.train()
             optim = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9,
@@ -133,17 +133,76 @@ class FedMD_standalone_API:
 
                     images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
                     log_probs = model(images)
+                    print(log_probs.dtype)
                     loss = self.criterion_CE(log_probs, labels)
                     optim.zero_grad()
                     loss.backward()
                     optim.step()
             client_params = model.state_dict()
             torch.save(client_params, f"{client_index}.pth")
+        #测试公共数据精度
+        public_acc_all = []
         for client_index, model in enumerate(self.client_models):
+            #监控数据
+            public_loss_avg = utils.RunningAverage()
+            public_accTop1_avg = utils.RunningAverage()
+            public_accTop5_avg = utils.RunningAverage()
+
             for batch_idx, (images, labels) in enumerate(public_test_data[0]):
                 images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
                 log_probs = model(images)
-                scores_cache.append(torch.tensor(log_probs))
+                loss = self.criterion_CE(log_probs, labels)
+                # Update average loss and accuracy
+                metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
+                #选择一个破坏者
+                if client_index == 0:
+
+                    # Get the top 2 values and indices for each sample
+                    values, indices = torch.topk(log_probs, k=2, dim=1)
+
+                    # Sort the indices
+                    sorted_indices = torch.argsort(indices, dim=1)
+
+                    # Gather the values and indices
+                    gathered_values = torch.gather(values, dim=1, index=sorted_indices)
+                    gathered_indices = torch.gather(indices, dim=1, index=sorted_indices)
+
+                    # Swap the values and indices
+                    swapped_values = torch.cat([gathered_values[:, 1:], gathered_values[:, :1]], dim=1)
+                    swapped_indices = torch.cat([gathered_indices[:, 1:], gathered_indices[:, :1]], dim=1)
+
+                    # Scatter the values and indices
+                    scattered_values = torch.zeros_like(log_probs)
+                    scattered_indices = torch.zeros_like(log_probs)
+
+
+                    scattered_values.scatter_(dim=1, index=swapped_indices, src=swapped_values)
+                    scattered_indices.scatter_(dim=1, index=swapped_indices, src=swapped_indices)
+
+                    # Repeat the process for all dimensions
+                    for i in range(2, 10):
+                        values, indices = torch.topk(log_probs, k=2, dim=i)
+                        sorted_indices = torch.argsort(indices, dim=i)
+                        gathered_values = torch.gather(values, dim=i, index=sorted_indices)
+                        gathered_indices = torch.gather(indices, dim=i, index=sorted_indices)
+                        swapped_values = torch.cat([gathered_values[:, 1:], gathered_values[:, :1]], dim=i)
+                        swapped_indices = torch.cat([gathered_indices[:, 1:], gathered_indices[:, :1]], dim=i)
+                        scattered_values.scatter_(dim=i, index=swapped_indices, src=swapped_values)
+                        scattered_indices.scatter_(dim=i, index=swapped_indices, src=swapped_indices)
+
+                    # The final output tensor
+                    log_probs = scattered_values
+
+                scores_cache.append(log_probs)
+
+                # only one element tensors can be converted to Python scalars
+                public_accTop1_avg.update(metrics[0].item())
+                public_accTop5_avg.update(metrics[1].item())
+                public_loss_avg.update(loss.item())
+                wandb.log({f"public top1 test Model {client_index} Accuracy": public_accTop1_avg.value()})
+                # wandb.log({f"public loss test Model {client_index} Accuracy": public_loss_avg.value()})
+            public_acc_all.append(public_accTop1_avg.value())
+        wandb.log({"public mean Test/AccTop1": float(np.mean(np.array(public_acc_all)))})
 
         # aggregate
         self.consensus = self.aggregate(scores_cache)
@@ -205,6 +264,9 @@ class FedMD_standalone_API:
                 accTop1_avg.update(metrics[0].item())
                 accTop5_avg.update(metrics[1].item())
                 loss_avg.update(loss.item())
+                wandb.log({f"local top1 test Model {client_index} Accuracy": accTop1_avg.value()})
+                # wandb.log({f"local loss test Model {client_index} Accuracy": loss_avg.value()})
+                # wandb.log({"client": client_index,"test_loss": loss_avg.value(),"test_accTop1": accTop1_avg.value(),"test_accTop5": accTop5_avg.value()})
             # print(loss_avg,type(loss_avg))
 
             # compute mean of all metrics in summary
@@ -215,5 +277,6 @@ class FedMD_standalone_API:
             # wandb.log({str(client_index)+" Test/Loss": test_metrics[str(client_index)+' test_loss']})
             # wandb.log({str(client_index)+" Test/AccTop1": test_metrics[str(client_index)+' test_accTop1']})
             acc_all.append(accTop1_avg.value())
-        wandb.log({"mean Test/AccTop1": float(np.mean(np.array(acc_all)))})
-        wandb.finish
+        wandb.log({"local mean Test/AccTop1": float(np.mean(np.array(acc_all)))})
+
+        wandb.finish()

@@ -20,7 +20,7 @@ def add_args(parser):
                         help='how to set on-device models on clients hetero/homo')
     parser.add_argument('--wd', type=float, default=5e-4,
                         help='weight decay parameter;')
-    parser.add_argument('--comm_round', type=int, default=50,
+    parser.add_argument('--comm_round', type=int, default=1,
                         help='how many round of communications we shoud use (default: 50)')
     parser.add_argument('--alpha', default=1.5, type=float,
                         help='Input the relative weight: default (1.5)')
