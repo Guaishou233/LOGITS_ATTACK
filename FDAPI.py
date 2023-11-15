@@ -107,8 +107,12 @@ class FD_standalone_API:
                     labels = torch.tensor(labels, dtype=torch.long)
                     images, labels = images.cuda(), labels.cuda()
                     log_probs = client_model(images)
+                    # #选择一个破坏者【在这里进行攻击！！！】
+                    if client_index == 0:
+                        log_probs = utils.change_logits(log_probs)
+
                     loss_true = F.cross_entropy(log_probs, labels)
-                    # 接下来挨个生成soft_label，并添加进入local_knowledge【在这里进行攻击！！！】
+                    # 接下来挨个生成soft_label，并添加进入local_knowledge
                     soft_label = []
                     for logit, label in zip(log_probs, labels):
                         c = int(label)
@@ -156,7 +160,7 @@ class FD_standalone_API:
                     client_model.eval()
                     loss_avg = utils.RunningAverage()
                     accTop1_avg = utils.RunningAverage()
-                    accTop5_avg = utils.RunningAverage()
+                    # accTop5_avg = utils.RunningAverage()
                     for batch_idx, (images, labels) in enumerate(test_data_local_dict[client_index]):
                         images, labels = images.cuda(), labels.cuda()
                         labels = torch.tensor(labels, dtype=torch.long)
@@ -166,14 +170,15 @@ class FD_standalone_API:
                         metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
                         # only one element tensors can be converted to Python scalars
                         accTop1_avg.update(metrics[0].item())
-                        accTop5_avg.update(metrics[1].item())
+                        # accTop5_avg.update(metrics[1].item())
+                        wandb.log({f"local top1 test Model {client_index} Accuracy": accTop1_avg.value()})
                         loss_avg.update(loss.item())
                     # print(loss_avg,type(loss_avg))
 
                     # compute mean of all metrics in summary
                     test_metrics = {str(client_index) + ' test_loss': loss_avg.value(),
                                     str(client_index) + ' test_accTop1': accTop1_avg.value(),
-                                    str(client_index) + ' test_accTop5': accTop5_avg.value(),
+                                    # str(client_index) + ' test_accTop5': accTop5_avg.value(),
                                     }
                     # wandb.log({str(client_index)+" Test/Loss": test_metrics[str(client_index)+' test_loss']})
                     # wandb.log({str(client_index)+" Test/AccTop1": test_metrics[str(client_index)+' test_accTop1']})

@@ -19,7 +19,7 @@ def add_args(parser):
                         help='how to set on-device models on clients hetero/homo')
     parser.add_argument('--wd', type=float, default=5e-4, 
                         help='weight decay parameter;')
-    parser.add_argument('--comm_round', type=int, default=1,
+    parser.add_argument('--comm_round', type=int, default=20,
                         help='how many round of communications we shoud use (default: 1000)')
     parser.add_argument('--alpha', default=1.5, type=float, 
                         help='Input the relative weight: default (1.5)')    
@@ -60,10 +60,14 @@ def load_data(args, dataset_name):
         data_loader = load_partition_data_cinic10
     train_data_num, test_data_num, train_data_global, test_data_global, \
     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
-    class_num_train, class_num_test, public_trainloader, testloader = data_loader(args.dataset, args.data_dir, args.partition_method,
-                            args.partition_alpha, args.client_number, args.batch_size)
+    class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict = data_loader(
+        args.dataset, args.data_dir,
+        args.partition_method,
+        args.partition_alpha, args.client_number,
+        args.batch_size)
     dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
-               train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train, class_num_test,public_trainloader]
+               train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+               class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict]
     return dataset
 
 
@@ -98,7 +102,8 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataset = load_data(args, args.dataset)
     [train_data_num, test_data_num, train_data_global, test_data_global,
-     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train, class_num_test] = dataset
+     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train,
+     class_num_test, public_train_data_local_dict, public_test_data_local_dict] = dataset
     client_models=create_client_models(args,class_num_train)
     api=FedCache_standalone_API(client_models,train_data_local_num_dict,test_data_local_num_dict, train_data_local_dict, test_data_local_dict, args,test_data_global)
     api.do_fedcache_stand_alone(client_models,train_data_local_num_dict, test_data_local_num_dict,train_data_local_dict, test_data_local_dict, args)

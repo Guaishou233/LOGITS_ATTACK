@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import wandb
+
 import utils
 import torch
 from torch import nn
@@ -142,6 +144,9 @@ class FedCache_standalone_API:
                     images, labels = images.cuda(), labels.cuda()
 
                     log_probs = client_model(images)
+                    # 选择一个破坏者
+                    if client_index == 0:
+                        log_probs = utils.change_logits(log_probs)
                     loss_true = F.cross_entropy(log_probs, labels)
                     loss=None
 
@@ -182,7 +187,8 @@ class FedCache_standalone_API:
                                     str(client_index)+' test_accTop5': accTop5_avg.value(),
                                     }
                     acc=accTop1_avg.value()
-                    print("mean Test/AccTop1 on client",client_index,":",acc)
+                    print("local Test/AccTop1 on client",client_index,":",acc)
+                    wandb.log({f"local top1 test Model {client_index} Accuracy": accTop1_avg.value()})
                     acc_all.append(acc)
                 print("mean Test/AccTop1 on all clients:",float(np.mean(np.array(acc_all))))
 

@@ -41,7 +41,7 @@ def add_args(parser):
                         help='how many other samples are associated with each sample')
     parser.add_argument('--T', type=float, default=1.0,
                         help='distrillation temperature (default: 1.0)')
-    parser.add_argument('--dataset', type=str, default='mnist02', metavar='N',
+    parser.add_argument('--dataset', type=str, default='mnist', metavar='N',
                         help='dataset used for training')
     parser.add_argument('--temperature', type=float, default=3,
                         help='temperature used for training')
@@ -62,10 +62,14 @@ def load_data(args, dataset_name):
         data_loader = load_partition_data_cinic10
     train_data_num, test_data_num, train_data_global, test_data_global, \
     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
-    class_num_train, class_num_test = data_loader(args.dataset, args.data_dir, args.partition_method,
-                            args.partition_alpha, args.client_number, args.batch_size)
+    class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict = data_loader(
+        args.dataset, args.data_dir,
+        args.partition_method,
+        args.partition_alpha, args.client_number,
+        args.batch_size)
     dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
-               train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train, class_num_test]
+               train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict,
+               class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict]
     return dataset
 
 
@@ -100,7 +104,8 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataset = load_data(args, args.dataset)
     [train_data_num, test_data_num, train_data_global, test_data_global,
-     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train, class_num_test] = dataset
+     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num_train,
+     class_num_test, public_train_data_local_dict, public_test_data_local_dict] = dataset
     client_models=create_client_models(args,class_num_train)
     api=FD_standalone_API(client_models,train_data_local_num_dict,test_data_local_num_dict, train_data_local_dict, test_data_local_dict, args,test_data_global)
     api.do_fd_stand_alone(client_models,train_data_local_num_dict, test_data_local_num_dict,train_data_local_dict, test_data_local_dict, args)
