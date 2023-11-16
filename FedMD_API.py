@@ -51,9 +51,9 @@ PROJECT_DIR = Path(__file__).absolute().parent
 def get_fedmd_argparser(args) -> ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.set_defaults(**vars(args))
-    parser.add_argument("--digest_epoch", type=int, default=1)
-    parser.add_argument("--local_epoch", type=int, default=1)
-    parser.add_argument("--public_epoch", type=int, default=1)
+    parser.add_argument("--digest_epoch", type=int, default=2)
+    parser.add_argument("--local_epoch", type=int, default=2)
+    parser.add_argument("--public_epoch", type=int, default=2)
     return parser
 
 

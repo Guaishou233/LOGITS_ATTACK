@@ -314,12 +314,24 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
         train_data_local_dict[client_idx] = train_data_local
         test_data_local_dict[client_idx] = test_data_local
 
-        # 分配公共数据的字典
-    public_train_data, public_test_data = get_dataloader(dataset, data_dir, batch_size, batch_size,
-                                                         public_dataidx_map_train[0], public_dataidx_map_test[0])
+    # 分配公共数据的字典
+    public_data_num_train = 0
+    public_data_num_test = 0
+    for i in range(len(public_dataidx_map_train)):
+        public_dataidxs_train = public_dataidx_map_train[i]
+        public_dataidxs_test = public_dataidx_map_test[i]
 
-    public_train_data_local_dict[0] = public_train_data
-    public_test_data_local_dict[0] = public_test_data
+        public_data_num_train = len(public_dataidxs_train) + public_data_num_train
+        public_data_num_test = len(public_dataidxs_test) + public_data_num_test
+
+        public_train_data, public_test_data = get_dataloader(dataset, data_dir, batch_size, batch_size,
+                                                             public_dataidxs_train, public_dataidxs_test)
+
+        public_train_data_local_dict[i] = public_train_data
+        public_test_data_local_dict[i] = public_test_data
+
+    logging.info("train_public_sample_number = %d" % public_data_num_train)
+    logging.info("test_public_sample_number = %d" % public_data_num_test)
 
     return train_data_num, test_data_num, train_data_global, test_data_global, \
            data_local_num_dict_train, data_local_num_dict_test, train_data_local_dict, test_data_local_dict, class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict
