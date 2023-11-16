@@ -63,29 +63,31 @@ class CE_Loss(nn.Module):
         loss = -self.T * self.T * torch.sum(torch.mul(output_batch, teacher_outputs)) / teacher_outputs.size(0)
         return loss
 
-def change_logits(log_probs):
 
-        num_columns = log_probs.size(1)
-        # 使用 torch.topk 获取每一行的值和索引
-        values, indices = torch.topk(log_probs, k=num_columns, dim=1)
-        # print("-----values-------indices-------")
-        # print(values)
-        # print(indices)
-        changed_indices = None
-        for i in range(0, num_columns, 2):
-            # 交换索引的位置
-            swapped_indices = torch.cat([indices[:, i + 1:i + 2], indices[:, i:i + 1]], dim=1)
-            # print("-----swapped_indices--------------")
-            # print(swapped_indices)
-            if i == 0:
-                changed_indices = swapped_indices
-            else:
-                changed_indices = torch.cat([changed_indices, swapped_indices], dim=1)
-            # print("-----changed_indices--------------")
-            # print(changed_indices)
-            # 更新 log_probs 中的索引
-        values = values.to(log_probs)
-        log_probs = log_probs.scatter(dim=1, index=changed_indices, src=values)
-        # print("-----changed_log_probs--------------")
-        # print(log_probs)
-        return  log_probs
+def change_logits(log_probs):
+    num_columns = log_probs.size(1)
+    # 使用 torch.topk 获取每一行的值和索引
+    values, indices = torch.topk(log_probs, k=num_columns, dim=1)
+    # print("-----values-------indices-------")
+    # print(values)
+    # print(indices)
+    # changed_indices = None
+    # for i in range(0, num_columns, 2):
+    # # 交换索引的位置
+    # swapped_indices = torch.cat([indices[:, i + 1:i + 2], indices[:, i:i + 1]], dim=1)
+    # # print("-----swapped_indices--------------")
+    # # print(swapped_indices)
+    # if i == 0:
+    #     changed_indices = swapped_indices
+    # else:
+    #     changed_indices = torch.cat([changed_indices, swapped_indices], dim=1)
+    # # print("-----changed_indices--------------")
+    # # print(changed_indices)
+    # # 更新 log_probs 中的索引
+    changed_indices = torch.cat((indices[:, 1:], indices[:, 0].unsqueeze(1)), dim=1)
+
+    values = values.to(log_probs)
+    log_probs = log_probs.scatter(dim=1, index=changed_indices, src=values)
+    # print("-----changed_log_probs--------------")
+    # print(log_probs)
+    return log_probs

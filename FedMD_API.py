@@ -51,9 +51,9 @@ PROJECT_DIR = Path(__file__).absolute().parent
 def get_fedmd_argparser(args) -> ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.set_defaults(**vars(args))
-    parser.add_argument("--digest_epoch", type=int, default=5)
-    parser.add_argument("--local_epoch", type=int, default=5)
-    parser.add_argument("--public_epoch", type=int, default=5)
+    parser.add_argument("--digest_epoch", type=int, default=1)
+    parser.add_argument("--local_epoch", type=int, default=1)
+    parser.add_argument("--public_epoch", type=int, default=1)
     return parser
 
 
@@ -132,15 +132,18 @@ class FedMD_standalone_API:
             model.train()
             optim = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9,
                                     weight_decay=args.wd)
-            for _ in range(self.args.public_epoch):
-                for batch_idx, (images, labels) in enumerate(public_train_data[0]):
 
-                    images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
-                    log_probs = model(images)
-                    loss = self.criterion_CE(log_probs, labels)
-                    optim.zero_grad()
-                    loss.backward()
-                    optim.step()
+            for _ in range(self.args.public_epoch):
+                for i in range(len(public_train_data)):
+                    print("第" + str(i) + "轮公共训练")
+                    for batch_idx, (images, labels) in enumerate(public_train_data[i]):
+
+                        images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
+                        log_probs = model(images)
+                        loss = self.criterion_CE(log_probs, labels)
+                        optim.zero_grad()
+                        loss.backward()
+                        optim.step()
             client_params = model.state_dict()
             torch.save(client_params,model_params_file)
         #测试公共数据精度
@@ -151,50 +154,52 @@ class FedMD_standalone_API:
             model.eval()
             public_accTop1_avg = utils.RunningAverage()
             public_accTop5_avg = utils.RunningAverage()
+            for i in range(len(public_test_data)):
+                print("第" + str(i) + "轮公共测试")
+                for batch_idx, (images, labels) in enumerate(public_test_data[i]):
+                    images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
+                    log_probs = model(images)
+                    # Update average loss and accuracy
+                    metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
 
-            for batch_idx, (images, labels) in enumerate(public_test_data[0]):
-                images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
-                log_probs = model(images)
-                # Update average loss and accuracy
-                metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
+                    # #选择一个破坏者
+                    if client_index == 0:
+                        print(log_probs)
+                        log_probs = utils.change_logits(log_probs)
+                        print(log_probs)
+                    #
+                    #     num_columns = log_probs.size(1)
+                    #     # 使用 torch.topk 获取每一行的值和索引
+                    #     values, indices = torch.topk(log_probs, k=num_columns, dim=1)
+                    #     # print("-----values-------indices-------")
+                    #     # print(values)
+                    #     # print(indices)
+                    #     changed_indices = None
+                    #     for i in range(0, num_columns, 2):
+                    #         # 交换索引的位置
+                    #         swapped_indices = torch.cat([indices[:, i + 1:i + 2], indices[:, i:i + 1]], dim=1)
+                    #         # print("-----swapped_indices--------------")
+                    #         # print(swapped_indices)
+                    #         if i == 0:
+                    #             changed_indices = swapped_indices
+                    #         else:
+                    #             changed_indices = torch.cat([changed_indices,swapped_indices],dim=1)
+                    #         # print("-----changed_indices--------------")
+                    #         # print(changed_indices)
+                    #         # 更新 log_probs 中的索引
+                    #     values = values.to(log_probs)
+                    #     log_probs = log_probs.scatter(dim=1, index=changed_indices, src=values)
+                    #     # print("-----changed_log_probs--------------")
+                    #     # print(log_probs)
 
-                # #选择一个破坏者
-                if client_index == 0:
-                    log_probs = utils.change_logits(log_probs)
+                    scores_cache.append(log_probs)
 
-                #
-                #     num_columns = log_probs.size(1)
-                #     # 使用 torch.topk 获取每一行的值和索引
-                #     values, indices = torch.topk(log_probs, k=num_columns, dim=1)
-                #     # print("-----values-------indices-------")
-                #     # print(values)
-                #     # print(indices)
-                #     changed_indices = None
-                #     for i in range(0, num_columns, 2):
-                #         # 交换索引的位置
-                #         swapped_indices = torch.cat([indices[:, i + 1:i + 2], indices[:, i:i + 1]], dim=1)
-                #         # print("-----swapped_indices--------------")
-                #         # print(swapped_indices)
-                #         if i == 0:
-                #             changed_indices = swapped_indices
-                #         else:
-                #             changed_indices = torch.cat([changed_indices,swapped_indices],dim=1)
-                #         # print("-----changed_indices--------------")
-                #         # print(changed_indices)
-                #         # 更新 log_probs 中的索引
-                #     values = values.to(log_probs)
-                #     log_probs = log_probs.scatter(dim=1, index=changed_indices, src=values)
-                #     # print("-----changed_log_probs--------------")
-                #     # print(log_probs)
-
-                scores_cache.append(log_probs)
-
-                # only one element tensors can be converted to Python scalars
-                public_accTop1_avg.update(metrics[0].item())
-                public_accTop5_avg.update(metrics[1].item())
-                wandb.log({f"public top1 test Model {client_index} Accuracy": public_accTop1_avg.value()})
-                # wandb.log({f"public loss test Model {client_index} Accuracy": public_loss_avg.value()})
-            public_acc_all.append(public_accTop1_avg.value())
+                    # only one element tensors can be converted to Python scalars
+                    public_accTop1_avg.update(metrics[0].item())
+                    public_accTop5_avg.update(metrics[1].item())
+                    wandb.log({f"public top1 test Model {client_index} Accuracy": public_accTop1_avg.value()})
+                    # wandb.log({f"public loss test Model {client_index} Accuracy": public_loss_avg.value()})
+                public_acc_all.append(public_accTop1_avg.value())
         wandb.log({"public mean Test/AccTop1": float(np.mean(np.array(public_acc_all)))})
 
         # aggregate

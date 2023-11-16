@@ -119,8 +119,9 @@ def partition_data_dataset(X_train,y_train, n_nets, alpha):
     min_size = 0
     K = 10
     N = y_train.shape[0]
-    # 追加一个额外的客户作为公共服务器训练数据
-    n_nets = n_nets + 1
+    # 追加一个额外的比例作为公共服务器训练数据
+    percent = 5
+    n_nets = n_nets + percent
     logging.info("N = " + str(N))
     net_dataidx_map = {}
     public_ditaidx_map = {}
@@ -154,10 +155,11 @@ def partition_data_dataset(X_train,y_train, n_nets, alpha):
             min_size = min([len(idx_j) for idx_j in idx_batch])
 
 
-    for j in range(n_nets):
+    for j in range(n_nets - percent):
         np.random.shuffle(idx_batch[j])
         net_dataidx_map[j] = idx_batch[j]
-    public_ditaidx_map[0] = idx_batch[n_nets - 1]
+    for i in range(percent):
+        public_ditaidx_map[i] = idx_batch[n_nets - 1 - i]
     return net_dataidx_map, public_ditaidx_map
 
 
@@ -359,11 +361,24 @@ def load_partition_data_mnist(dataset, data_dir, partition_method, partition_alp
         test_data_local_dict[client_idx] = test_data_local
 
     # 分配公共数据的字典
-    public_train_data, public_test_data = get_dataloader(dataset, data_dir, batch_size, batch_size,
-                                                         public_dataidx_map_train[0], public_dataidx_map_test[0])
+    public_data_num_train = 0
+    public_data_num_test = 0
+    for i in range(len(public_dataidx_map_train)):
+        public_dataidxs_train = public_dataidx_map_train[i]
+        public_dataidxs_test =  public_dataidx_map_test[i]
 
-    public_train_data_local_dict[0] = public_train_data
-    public_test_data_local_dict[0] = public_test_data
+        public_data_num_train = len(public_dataidxs_train) + public_data_num_train
+        public_data_num_test = len(public_dataidxs_test) + public_data_num_test
+
+        public_train_data, public_test_data = get_dataloader(dataset, data_dir, batch_size, batch_size,
+                                                 public_dataidxs_train,public_dataidxs_test)
+
+        public_train_data_local_dict[i] = public_train_data
+        public_test_data_local_dict[i] = public_test_data
+
+    logging.info("train_public_sample_number = %d" % public_data_num_train)
+    logging.info("test_public_sample_number = %d" % public_data_num_test)
+
         
     return train_data_num, test_data_num, train_data_global, test_data_global, \
            data_local_num_dict_train, data_local_num_dict_test,train_data_local_dict, test_data_local_dict, class_num_train,class_num_test, public_train_data_local_dict, public_test_data_local_dict
