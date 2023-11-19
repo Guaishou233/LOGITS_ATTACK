@@ -91,3 +91,24 @@ def change_logits(log_probs):
     # print("-----changed_log_probs--------------")
     # print(log_probs)
     return log_probs
+
+def repalceLogitsWith0(log_probs):
+    # 将所有 logits 设置为0
+    log_probs = log_probs.zero_()
+
+
+    return log_probs
+
+def replace_logits_with_random(log_probs):
+    # 指定均值和方差
+    mean = 0.0
+    std = 1.0
+
+    # 生成具有指定均值和方差的随机数
+    random_logits = torch.normal(mean=mean, std=std, size=log_probs.size())
+
+    # 将输入的 logits 替换为随机数
+    log_probs.data.copy_(random_logits)
+
+
+    return log_probs

@@ -107,6 +107,9 @@ class FedCache_standalone_API:
         image_scaler=transforms.Compose([
         transforms.Resize(224),
     ])
+        wandb.login(key="7b2c2faf25f89695e0818127528f37c246743c86")
+        wandb.init(project='FedCache', config=args)
+
         print("*********start training with FedCache***************")
         train_data_local_dict_seq={}
         for client_index in range(args.client_number):
@@ -145,7 +148,7 @@ class FedCache_standalone_API:
 
                     log_probs = client_model(images)
                     # 选择一个破坏者
-                    if client_index == 0:
+                    if client_index < 1:
                         log_probs = utils.change_logits(log_probs)
                     loss_true = F.cross_entropy(log_probs, labels)
                     loss=None
@@ -191,4 +194,7 @@ class FedCache_standalone_API:
                     wandb.log({f"local top1 test Model {client_index} Accuracy": accTop1_avg.value()})
                     acc_all.append(acc)
                 print("mean Test/AccTop1 on all clients:",float(np.mean(np.array(acc_all))))
+                wandb.log({f"mean Test/AccTop1 on all clients": float(np.mean(np.array(acc_all)))})
+    wandb.finish()
+
 

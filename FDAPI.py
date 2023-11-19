@@ -71,6 +71,8 @@ class FD_standalone_API:
         self.test_data_global = test_data_global
         self.criterion_KL = utils.KL_Loss(args.temperature)
         self.criterion_CE = F.cross_entropy
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
     def do_fd_stand_alone(self, client_models, train_data_local_num_dict, test_data_local_num_dict,
                           train_data_local_dict, test_data_local_dict, args):
@@ -88,7 +90,7 @@ class FD_standalone_API:
             for c in range(args.class_num):
                 local_knowledge[idx][c] = torch.Tensor(np.array([1 / args.class_num for _ in range(args.class_num)]))
 
-        for global_epoch in range(10):  # 表示进行多少次客户端与服务器之间的交互，设置为无限大则一直不停
+        for global_epoch in range(1):  # 表示进行多少次客户端与服务器之间的交互，设置为无限大则一直不停
             metrics_all = {'test_loss': [], 'test_accTop1': [], 'test_accTop5': [], 'f1': []}
             for client_index, client_model in enumerate(self.client_models):
                 tmp_logits = {}  # 第c类的所有logits【收集每个设备上的对应类别样本的输出，并且用二维数组对应类别存储[类别][输出]】
@@ -98,18 +100,23 @@ class FD_standalone_API:
                 # 本质上也是根据标签进行block知识 每一个标签对应的知识都不一样
                 # FD方法并没有根据样本数量进行加权
                 print("开始训练第" + str(client_index) + "个客户端")
-                client_model = client_model.cuda()
+                client_model = client_model.to(self.device)
                 client_model.train()
                 optim = torch.optim.SGD(client_model.parameters(), lr=args.lr, momentum=0.9,
                                         weight_decay=args.wd)
                 # print("client",client_index)
                 for batch_idx, (images, labels) in enumerate(train_data_local_dict[client_index]):
                     labels = torch.tensor(labels, dtype=torch.long)
-                    images, labels = images.cuda(), labels.cuda()
+                    images, labels = images.to(self.device), labels.to(self.device)
                     log_probs = client_model(images)
                     # #选择一个破坏者【在这里进行攻击！！！】
-                    if client_index == 0:
-                        log_probs = utils.change_logits(log_probs)
+                    if client_index < 1 :
+                        # log_probs = utils.change_logits(log_probs)
+                        # log_probs = utils.repalceLogitsWith0(log_probs)
+                    #
+                        log_probs = utils.replace_logits_with_random(log_probs)
+                    #     print("修该后的log_probs")
+                    #     print(log_probs)
 
                     loss_true = F.cross_entropy(log_probs, labels)
                     # 接下来挨个生成soft_label，并添加进入local_knowledge
@@ -119,7 +126,7 @@ class FD_standalone_API:
                         soft_label.append(
                             (global_knowledge[c] - local_knowledge[client_index][c]) / (args.client_number - 1))
                         tmp_logits[c].append(logit.cpu().detach().numpy())
-                    soft_label = torch.Tensor([item.cpu().detach().numpy() for item in soft_label]).cuda()
+                    soft_label = torch.Tensor([item.cpu().detach().numpy() for item in soft_label]).to(self.device)
                     loss_kd = F.cross_entropy(log_probs, F.softmax(
                         soft_label))  # tensor_cross_entropy(log_probs,soft_label)#self.criterion_KL(log_probs, soft_label)
                     loss = loss_true + args.alpha * loss_kd
@@ -162,7 +169,7 @@ class FD_standalone_API:
                     accTop1_avg = utils.RunningAverage()
                     # accTop5_avg = utils.RunningAverage()
                     for batch_idx, (images, labels) in enumerate(test_data_local_dict[client_index]):
-                        images, labels = images.cuda(), labels.cuda()
+                        images, labels = images.to(self.device), labels.to(self.device)
                         labels = torch.tensor(labels, dtype=torch.long)
                         log_probs = client_model(images)
                         loss = self.criterion_CE(log_probs, labels)
@@ -181,7 +188,7 @@ class FD_standalone_API:
                                     # str(client_index) + ' test_accTop5': accTop5_avg.value(),
                                     }
                     # wandb.log({str(client_index)+" Test/Loss": test_metrics[str(client_index)+' test_loss']})
-                    # wandb.log({str(client_index)+" Test/AccTop1": test_metrics[str(client_index)+' test_accTop1']})
+                    wandb.log({str(client_index)+" Test/AccTop1": test_metrics[str(client_index)+' test_accTop1']})
                     acc_all.append(accTop1_avg.value())
                 wandb.log({"mean Test/AccTop1": float(np.mean(np.array(acc_all)))})
                 # metrics=self.eval_on_the_client()
@@ -200,4 +207,5 @@ class FD_standalone_API:
                 #    extracted_feature_dict_test[batch_idx] = extracted_features_test.cpu().detach().numpy()
                 #    labels_dict_test[batch_idx] = test_labels.cpu().detach().numpy()
 
+        wandb.finish()
 

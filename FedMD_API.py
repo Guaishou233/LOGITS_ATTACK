@@ -166,7 +166,6 @@ class FedMD_standalone_API:
                     if client_index == 0:
                         print(log_probs)
                         log_probs = utils.change_logits(log_probs)
-                        print(log_probs)
                     #
                     #     num_columns = log_probs.size(1)
                     #     # 使用 torch.topk 获取每一行的值和索引

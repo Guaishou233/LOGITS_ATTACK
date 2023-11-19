@@ -19,9 +19,9 @@ def add_args(parser):
                         help='how to set on-device models on clients hetero/homo')
     parser.add_argument('--wd', type=float, default=5e-4, 
                         help='weight decay parameter;')
-    parser.add_argument('--comm_round', type=int, default=20,
+    parser.add_argument('--comm_round', type=int, default=10,
                         help='how many round of communications we shoud use (default: 1000)')
-    parser.add_argument('--alpha', default=1.5, type=float, 
+    parser.add_argument('--alpha', default=0.5, type=float,
                         help='Input the relative weight: default (1.5)')    
     parser.add_argument('--sel', type=int, default=1, metavar='EP',
                         help='one out of every how many clients is selected to conduct testing  (default: 1)')
@@ -31,9 +31,9 @@ def add_args(parser):
                         help='input batch size for training (default: 8)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',#0.01
                         help='learning rate (default: 0.01)')
-    parser.add_argument('--client_number', type=int, default=5, metavar='NN',#400
+    parser.add_argument('--client_number', type=int, default=20, metavar='NN',#400
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--partition_alpha', type=float, default=1.0, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
                         help='partition alpha (default: 1.0)')
     parser.add_argument('--class_num', type=int, default=10,
                         help='class_num')
@@ -41,7 +41,7 @@ def add_args(parser):
                         help='how many other samples are associated with each sample')
     parser.add_argument('--T', type=float, default=1.0,
                         help='distrillation temperature (default: 1.0)')
-    parser.add_argument('--dataset', type=str, default='fmnist', metavar='N',
+    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
     args = parser.parse_args()
     args.client_number_per_round=args.client_number

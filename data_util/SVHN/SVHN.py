@@ -5,7 +5,7 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from .datasets import CIFAR10_truncated  # 真正运行时采用
+from .datasets import svhn_truncated  # 真正运行时采用
 
 # from datasets import CIFAR10_truncated#测试本文件采用
 
@@ -78,11 +78,12 @@ class Cutout(object):
         return img
 
 
-def _data_transforms_cifar10():
-    CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
-    CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+def _data_transforms_svhn():
+    CIFAR_MEAN = [0.4377, 0.4438, 0.4728]
+    CIFAR_STD = [0.1201, 0.1231, 0.1052]
 
     train_transform = transforms.Compose([
+
         transforms.ToPILImage(),
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
@@ -100,14 +101,14 @@ def _data_transforms_cifar10():
     return train_transform, valid_transform
 
 
-def load_cifar10_data(datadir):
-    train_transform, test_transform = _data_transforms_cifar10()
+def load_svhn_data(datadir):
+    train_transform, test_transform = _data_transforms_svhn()
 
-    cifar10_train_ds = CIFAR10_truncated(datadir, train=True, download=True, transform=train_transform)
-    cifar10_test_ds = CIFAR10_truncated(datadir, train=False, download=True, transform=test_transform)
+    svhn_train_ds = svhn_truncated(datadir, split="train", transform=train_transform, download=True)
+    svhn_test_ds = svhn_truncated(datadir, split="test", transform=test_transform, download=True)
 
-    X_train, y_train = cifar10_train_ds.data, cifar10_train_ds.target
-    X_test, y_test = cifar10_test_ds.data, cifar10_test_ds.target
+    X_train, y_train = svhn_train_ds.data, svhn_train_ds.target
+    X_test, y_test = svhn_test_ds.data, svhn_test_ds.target
 
     return (X_train, y_train, X_test, y_test)
 
@@ -160,7 +161,7 @@ def partition_data_dataset(X_train, y_train, n_nets, alpha):
 
 def partition_data(dataset, datadir, partition, n_nets, alpha):
     logging.info("*********partition data***************")
-    X_train, y_train, X_test, y_test = load_cifar10_data(datadir)
+    X_train, y_train, X_test, y_test = load_svhn_data(datadir)
     n_train = X_train.shape[0]
     n_test = X_test.shape[0]
 
@@ -203,16 +204,16 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs_train=None, dat
 
 # for local devices
 def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dataidxs_test):
-    return get_dataloader_test_CIFAR10(datadir, train_bs, test_bs, dataidxs_train, dataidxs_test)
+    return get_dataloader_test_svhn(datadir, train_bs, test_bs, dataidxs_train, dataidxs_test)
 
 
 def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
-    dl_obj = CIFAR10_truncated
+    dl_obj = svhn_truncated
 
-    transform_train, transform_test = _data_transforms_cifar10()
+    transform_train, transform_test = _data_transforms_svhn()
 
-    train_ds = dl_obj(datadir, dataidxs=dataidxs_train, train=True, transform=transform_train, download=True)
-    test_ds = dl_obj(datadir, dataidxs=dataidxs_test, train=False, transform=transform_test, download=True)
+    train_ds = dl_obj(datadir, dataidxs=dataidxs_train, split="train", transform=transform_train, download=True)
+    test_ds = dl_obj(datadir, dataidxs=dataidxs_test, split="test", transform=transform_test, download=True)
 
     train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, shuffle=False, drop_last=True)
     test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False, drop_last=True)
@@ -220,13 +221,13 @@ def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None, data
     return train_dl, test_dl
 
 
-def get_dataloader_test_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
-    dl_obj = CIFAR10_truncated
+def get_dataloader_test_svhn(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
+    dl_obj = svhn_truncated
 
-    transform_train, transform_test = _data_transforms_cifar10()
+    transform_train, transform_test = _data_transforms_svhn()
 
-    train_ds = dl_obj(datadir, dataidxs=dataidxs_train, train=True, transform=transform_train, download=True)
-    test_ds = dl_obj(datadir, dataidxs=dataidxs_test, train=False, transform=transform_test, download=True)
+    train_ds = dl_obj(datadir, dataidxs=dataidxs_train, split="train", transform=transform_train, download=True)
+    test_ds = dl_obj(datadir, dataidxs=dataidxs_test, split="test", transform=transform_test, download=True)
 
     train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, shuffle=False, drop_last=True)
     test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False, drop_last=True)
@@ -268,12 +269,13 @@ def get_dataloader_test_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None,
 #     return train_data_num, train_data_global, test_data_global, local_data_num, train_data_local, test_data_local, class_num
 
 
-def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
-    X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test, public_dataidx_map_train, public_dataidx_map_test  = partition_data(dataset,
-                                                                                                   data_dir,
-                                                                                                   partition_method,
-                                                                                                   client_number,
-                                                                                                   partition_alpha)
+def load_partition_data_svhn(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
+    X_train, y_train, X_test, y_test, net_dataidx_map_train, net_dataidx_map_test, public_dataidx_map_train, public_dataidx_map_test = partition_data(
+        dataset,
+        data_dir,
+        partition_method,
+        client_number,
+        partition_alpha)
     class_num_train = len(np.unique(y_train))
     class_num_test = len(np.unique(y_test))
     # logging.info("traindata_cls_counts = " + str(traindata_cls_counts))

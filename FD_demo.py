@@ -5,6 +5,7 @@ import torch
 import random
 from data_util.FMNIST.fashionmnist_data_loader import load_partition_data_FashionMNIST
 from data_util.MNIST.data_loader import load_partition_data_mnist
+from data_util.SVHN.SVHN import load_partition_data_svhn
 from data_util.cifar10.data_loader import load_partition_data_cifar10
 from data_util.cinic10.data_loader import load_partition_data_cinic10
 from resnet_client import resnet20, resnet16, resnet8
@@ -33,7 +34,7 @@ def add_args(parser):
                         help='learning rate (default: 0.01)')
     parser.add_argument('--client_number', type=int, default=5, metavar='NN',#400
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--partition_alpha', type=float, default=1.0, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
                         help='partition alpha (default: 1.0)')
     parser.add_argument('--class_num', type=int, default=10,
                         help='class_num')
@@ -41,7 +42,7 @@ def add_args(parser):
                         help='how many other samples are associated with each sample')
     parser.add_argument('--T', type=float, default=1.0,
                         help='distrillation temperature (default: 1.0)')
-    parser.add_argument('--dataset', type=str, default='mnist', metavar='N',
+    parser.add_argument('--dataset', type=str, default='svhn', metavar='N',
                         help='dataset used for training')
     parser.add_argument('--temperature', type=float, default=3,
                         help='temperature used for training')
@@ -59,7 +60,7 @@ def load_data(args, dataset_name):
     elif dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
     else:
-        data_loader = load_partition_data_cinic10
+        data_loader = load_partition_data_svhn
     train_data_num, test_data_num, train_data_global, test_data_global, \
     train_data_local_num_dict, test_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
     class_num_train, class_num_test, public_train_data_local_dict, public_test_data_local_dict = data_loader(
