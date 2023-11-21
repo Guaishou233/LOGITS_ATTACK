@@ -16,7 +16,7 @@ def add_args(parser):
     parser.add_argument('--data_dir', type=str, default='./data', help='data directory')
     parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
                         help='how to partition the dataset on local workers hetero/homo')
-    parser.add_argument('--model_setting', type=str, default='hetero', metavar='N',
+    parser.add_argument('--model_setting', type=str, default='homo', metavar='N',
                         help='how to set on-device models on clients hetero/homo')
     parser.add_argument('--wd', type=float, default=5e-4,
                         help='weight decay parameter;')
@@ -32,9 +32,9 @@ def add_args(parser):
                         help='input batch size for training (default: 8)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',#0.01
                         help='learning rate (default: 0.01)')
-    parser.add_argument('--client_number', type=int, default=5, metavar='NN',#400
+    parser.add_argument('--client_number', type=int, default=10, metavar='NN',#400
                         help='number of workers in a distributed cluster')
-    parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
+    parser.add_argument('--partition_alpha', type=float, default=1, metavar='PA',
                         help='partition alpha (default: 1.0)')
     parser.add_argument('--class_num', type=int, default=10,
                         help='class_num')

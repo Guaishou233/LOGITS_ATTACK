@@ -118,7 +118,7 @@ def partition_data_dataset(X_train, y_train, n_nets, alpha):
     K = 10
     N = y_train.shape[0]
     # 追加一个额外的比例作为公共服务器训练数据
-    percent = 0
+    percent = 10
     n_nets = n_nets + percent
     logging.info("N = " + str(N))
     net_dataidx_map = {}
@@ -166,14 +166,23 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
     n_test = X_test.shape[0]
 
     if partition == "homo":
+        public_dataidx_map_train = {}
+        public_dataidx_map_test = {}
         total_num = n_train
         test_total_num = n_test
         idxs = np.random.permutation(total_num)
         idxs_test = np.random.permutation(test_total_num)
+
+        # 追加一个额外的比例作为公共服务器训练数据
+        percent = 7
+        n_nets = n_nets + percent
         batch_idxs = np.array_split(idxs, n_nets)
         batch_idxs_test = np.array_split(idxs_test, n_nets)
         net_dataidx_map_train = {i: batch_idxs[i] for i in range(n_nets)}
         net_dataidx_map_test = {i: batch_idxs_test[i] for i in range(n_nets)}
+        for i in range(percent):
+            public_dataidx_map_train[i] = batch_idxs[n_nets - i -1]
+            public_dataidx_map_test[i] = batch_idxs_test[n_nets - i -1]
 
     elif partition == "hetero":  # 在此处分割数据
         net_dataidx_map_train, public_dataidx_map_train = partition_data_dataset(X_train, y_train, n_nets, alpha)
@@ -199,7 +208,7 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
 
 # for centralized training
 def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
-    return get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs_train, dataidxs_test)
+    return get_dataloader_svhn(datadir, train_bs, test_bs, dataidxs_train, dataidxs_test)
 
 
 # for local devices
@@ -207,7 +216,7 @@ def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dat
     return get_dataloader_test_svhn(datadir, train_bs, test_bs, dataidxs_train, dataidxs_test)
 
 
-def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
+def get_dataloader_svhn(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
     dl_obj = svhn_truncated
 
     transform_train, transform_test = _data_transforms_svhn()

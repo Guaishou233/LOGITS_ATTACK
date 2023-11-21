@@ -51,9 +51,9 @@ PROJECT_DIR = Path(__file__).absolute().parent
 def get_fedmd_argparser(args) -> ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.set_defaults(**vars(args))
-    parser.add_argument("--digest_epoch", type=int, default=2)
-    parser.add_argument("--local_epoch", type=int, default=2)
-    parser.add_argument("--public_epoch", type=int, default=2)
+    parser.add_argument("--digest_epoch", type=int, default=10)
+    parser.add_argument("--local_epoch", type=int, default=10)
+    parser.add_argument("--public_epoch", type=int, default=1)
     return parser
 
 
@@ -103,7 +103,7 @@ class FedMD_standalone_API:
 
     def do_fedMD_stand_alone(self, client_models, train_data_local_num_dict, test_data_local_num_dict,
                              train_data_local_dict, test_data_local_dict, args, public_train_data, public_test_data):
-        wandb.login(key="7b2c2faf25f89695e0818127528f37c246743c86")
+        wandb.login(key="8eece390c9549c98f5adc1b49b53b38a5c4ebb74")
         wandb.init(project='FedMD', config=args)
 
 
@@ -135,7 +135,7 @@ class FedMD_standalone_API:
 
             for _ in range(self.args.public_epoch):
                 for i in range(len(public_train_data)):
-                    print("第" + str(i) + "轮公共训练")
+                    print("第"+str(client_index)+ "的第" + str(i) + "轮公共训练")
                     for batch_idx, (images, labels) in enumerate(public_train_data[i]):
 
                         images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
@@ -162,34 +162,14 @@ class FedMD_standalone_API:
                     # Update average loss and accuracy
                     metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
 
-                    # #选择一个破坏者
-                    if client_index == 0:
-                        print(log_probs)
-                        log_probs = utils.change_logits(log_probs)
-                    #
-                    #     num_columns = log_probs.size(1)
-                    #     # 使用 torch.topk 获取每一行的值和索引
-                    #     values, indices = torch.topk(log_probs, k=num_columns, dim=1)
-                    #     # print("-----values-------indices-------")
-                    #     # print(values)
-                    #     # print(indices)
-                    #     changed_indices = None
-                    #     for i in range(0, num_columns, 2):
-                    #         # 交换索引的位置
-                    #         swapped_indices = torch.cat([indices[:, i + 1:i + 2], indices[:, i:i + 1]], dim=1)
-                    #         # print("-----swapped_indices--------------")
-                    #         # print(swapped_indices)
-                    #         if i == 0:
-                    #             changed_indices = swapped_indices
-                    #         else:
-                    #             changed_indices = torch.cat([changed_indices,swapped_indices],dim=1)
-                    #         # print("-----changed_indices--------------")
-                    #         # print(changed_indices)
-                    #         # 更新 log_probs 中的索引
-                    #     values = values.to(log_probs)
-                    #     log_probs = log_probs.scatter(dim=1, index=changed_indices, src=values)
-                    #     # print("-----changed_log_probs--------------")
-                    #     # print(log_probs)
+                    #选择一个破坏者
+                    #选择一个破坏者【在这里进行攻击！！！】
+                    # if client_index < 1:
+                        # log_probs = utils.change_logits(log_probs)
+                        # log_probs = utils.repalceLogitsWith0(log_probs)
+                        #
+                        # log_probs = utils.replace_logits_with_random(log_probs)
+
 
                     scores_cache.append(log_probs)
 

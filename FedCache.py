@@ -107,7 +107,7 @@ class FedCache_standalone_API:
         image_scaler=transforms.Compose([
         transforms.Resize(224),
     ])
-        wandb.login(key="7b2c2faf25f89695e0818127528f37c246743c86")
+        wandb.login(key="8eece390c9549c98f5adc1b49b53b38a5c4ebb74")
         wandb.init(project='FedCache', config=args)
 
         print("*********start training with FedCache***************")
@@ -147,9 +147,12 @@ class FedCache_standalone_API:
                     images, labels = images.cuda(), labels.cuda()
 
                     log_probs = client_model(images)
-                    # 选择一个破坏者
-                    if client_index < 1:
-                        log_probs = utils.change_logits(log_probs)
+                    #选择一个破坏者【在这里进行攻击！！！】
+                    if client_index < 3 :
+                        # log_probs = utils.change_logits(log_probs)
+                        # log_probs = utils.repalceLogitsWith0(log_probs)
+                    #
+                        log_probs = utils.replace_logits_with_random(log_probs)
                     loss_true = F.cross_entropy(log_probs, labels)
                     loss=None
 

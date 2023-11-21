@@ -76,7 +76,7 @@ class FD_standalone_API:
 
     def do_fd_stand_alone(self, client_models, train_data_local_num_dict, test_data_local_num_dict,
                           train_data_local_dict, test_data_local_dict, args):
-        wandb.login(key="7b2c2faf25f89695e0818127528f37c246743c86")
+        wandb.login(key="8eece390c9549c98f5adc1b49b53b38a5c4ebb74")
         wandb.init(project='FD', config=args)
         # 第一步 初始化全局知识
         global_knowledge = {}  # 输入类别 输出对应的知识
@@ -90,7 +90,7 @@ class FD_standalone_API:
             for c in range(args.class_num):
                 local_knowledge[idx][c] = torch.Tensor(np.array([1 / args.class_num for _ in range(args.class_num)]))
 
-        for global_epoch in range(1):  # 表示进行多少次客户端与服务器之间的交互，设置为无限大则一直不停
+        for global_epoch in range(args.comm_round):  # 表示进行多少次客户端与服务器之间的交互，设置为无限大则一直不停
             metrics_all = {'test_loss': [], 'test_accTop1': [], 'test_accTop5': [], 'f1': []}
             for client_index, client_model in enumerate(self.client_models):
                 tmp_logits = {}  # 第c类的所有logits【收集每个设备上的对应类别样本的输出，并且用二维数组对应类别存储[类别][输出]】
@@ -111,12 +111,11 @@ class FD_standalone_API:
                     log_probs = client_model(images)
                     # #选择一个破坏者【在这里进行攻击！！！】
                     if client_index < 1 :
-                        # log_probs = utils.change_logits(log_probs)
+                        log_probs = utils.change_logits(log_probs)
                         # log_probs = utils.repalceLogitsWith0(log_probs)
                     #
-                        log_probs = utils.replace_logits_with_random(log_probs)
-                    #     print("修该后的log_probs")
-                    #     print(log_probs)
+                        # log_probs = utils.replace_logits_with_random(log_probs)
+
 
                     loss_true = F.cross_entropy(log_probs, labels)
                     # 接下来挨个生成soft_label，并添加进入local_knowledge
@@ -133,6 +132,7 @@ class FD_standalone_API:
                     optim.zero_grad()
                     loss.backward()
                     optim.step()
+                    torch.cuda.empty_cache()
                 # 处理tmp_logits
                 for c in range(args.class_num):
                     if len(tmp_logits[c]) != 0:
