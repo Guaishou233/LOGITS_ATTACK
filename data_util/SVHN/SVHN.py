@@ -118,7 +118,7 @@ def partition_data_dataset(X_train, y_train, n_nets, alpha):
     K = 10
     N = y_train.shape[0]
     # 追加一个额外的比例作为公共服务器训练数据
-    percent = 10
+    percent = 1
     n_nets = n_nets + percent
     logging.info("N = " + str(N))
     net_dataidx_map = {}
@@ -174,7 +174,7 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
         idxs_test = np.random.permutation(test_total_num)
 
         # 追加一个额外的比例作为公共服务器训练数据
-        percent = 7
+        percent = 1
         n_nets = n_nets + percent
         batch_idxs = np.array_split(idxs, n_nets)
         batch_idxs_test = np.array_split(idxs_test, n_nets)

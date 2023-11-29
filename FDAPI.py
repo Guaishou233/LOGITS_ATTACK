@@ -109,10 +109,10 @@ class FD_standalone_API:
                     labels = torch.tensor(labels, dtype=torch.long)
                     images, labels = images.to(self.device), labels.to(self.device)
                     log_probs = client_model(images)
-                    # #选择一个破坏者【在这里进行攻击！！！】
-                    if client_index < 1 :
+                    #选择一个破坏者【在这里进行攻击！！！】
+                    if client_index < 5 :
                         log_probs = utils.change_logits(log_probs)
-                        # log_probs = utils.repalceLogitsWith0(log_probs)
+                        # log_probs = utils.repalceLogitsWith0(log/_probs)
                     #
                         # log_probs = utils.replace_logits_with_random(log_probs)
 
@@ -178,7 +178,6 @@ class FD_standalone_API:
                         # only one element tensors can be converted to Python scalars
                         accTop1_avg.update(metrics[0].item())
                         # accTop5_avg.update(metrics[1].item())
-                        wandb.log({f"local top1 test Model {client_index} Accuracy": accTop1_avg.value()})
                         loss_avg.update(loss.item())
                     # print(loss_avg,type(loss_avg))
 
@@ -187,7 +186,7 @@ class FD_standalone_API:
                                     str(client_index) + ' test_accTop1': accTop1_avg.value(),
                                     # str(client_index) + ' test_accTop5': accTop5_avg.value(),
                                     }
-                    # wandb.log({str(client_index)+" Test/Loss": test_metrics[str(client_index)+' test_loss']})
+                    wandb.log({str(client_index)+" Test/Loss": test_metrics[str(client_index)+' test_loss']})
                     wandb.log({str(client_index)+" Test/AccTop1": test_metrics[str(client_index)+' test_accTop1']})
                     acc_all.append(accTop1_avg.value())
                 wandb.log({"mean Test/AccTop1": float(np.mean(np.array(acc_all)))})
