@@ -148,11 +148,10 @@ class FedCache_standalone_API:
 
                     log_probs = client_model(images)
                     #选择一个破坏者【在这里进行攻击！！！】
-                    if client_index < 5 :
-                        log_probs = utils.change_logits(log_probs)
+                    if client_index < 10 :
+                        # log_probs = utils.change_logits(log_probs)
                         # log_probs = utils.repalceLogitsWith0(log_probs)
-                    #
-                        # log_probs = utils.replace_logits_with_random(log_probs)
+                        log_probs = utils.replace_logits_with_random(log_probs)
                     loss_true = F.cross_entropy(log_probs, labels)
                     loss=None
 
