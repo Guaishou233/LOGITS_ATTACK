@@ -42,7 +42,7 @@ def add_args(parser):
                         help='how many other samples are associated with each sample')
     parser.add_argument('--T', type=float, default=1.0,
                         help='distrillation temperature (default: 1.0)')
-    parser.add_argument('--dataset', type=str, default='svhn', metavar='N',
+    parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
     args = parser.parse_args()
     args.client_number_per_round=args.client_number

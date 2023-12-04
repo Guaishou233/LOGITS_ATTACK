@@ -117,7 +117,7 @@ def partition_data_dataset(X_train, y_train, n_nets, alpha):
     K = 10
     N = y_train.shape[0]
     # 追加一个额外的比例作为公共服务器训练数据
-    percent = 10
+    percent = 1
     n_nets = n_nets + percent
     logging.info("N = " + str(N))
     net_dataidx_map = {}

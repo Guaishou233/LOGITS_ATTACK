@@ -51,9 +51,10 @@ PROJECT_DIR = Path(__file__).absolute().parent
 def get_fedmd_argparser(args) -> ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.set_defaults(**vars(args))
-    parser.add_argument("--digest_epoch", type=int, default=10)
-    parser.add_argument("--local_epoch", type=int, default=3)
-    parser.add_argument("--public_epoch", type=int, default=200)
+    parser.add_argument("--digest_epoch", type=int, default=1)
+    parser.add_argument("--local_epoch", type=int, default=1)
+    parser.add_argument("--public_epoch", type=int, default=1)
+    parser.add_argument("--communicat_epoch", type=int, default=1)
     return parser
 
 
@@ -73,10 +74,10 @@ class FedMD_standalone_API:
 
     def custom_cross_entropy(self,raw_output, true_labels):
         # 应用 LogSoftmax 激活
-        log_softmax_output = F.log_softmax(raw_output, dim=1)
+        # log_softmax_output = F.log_softmax(raw_output, dim=1)
 
         # 计算每个样本的交叉熵损失
-        loss_per_sample = -torch.sum(true_labels * log_softmax_output, dim=1)
+        loss_per_sample = -torch.sum(true_labels * raw_output, dim=1)
 
         # 计算平均损失
         average_loss = torch.mean(loss_per_sample)
@@ -176,7 +177,7 @@ class FedMD_standalone_API:
         #上传score
         digest_loss_avg = utils.RunningAverage()
         digest_accTop1_avg = utils.RunningAverage()
-        for digest_num in range(self.args.digest_epoch):
+        for digest_num in range(self.args.communicat_epoch):
             print(str(digest_num)+"digest轮次")
             for i in range(len(public_train_data)):
                 for batch_idx, (images, labels) in enumerate(public_train_data[i]):
@@ -187,24 +188,21 @@ class FedMD_standalone_API:
                         with torch.no_grad():
                             images, labels = images.to(self.device), torch.tensor(labels, dtype=torch.long).to(self.device)
                             log_probs = model(images)
-                            changed_score = F.softmax(log_probs)
                             # 选择一个破坏者
                             # 选择一个破坏者【在这里进行攻击！！！】
-                            if client_index < 5:
-                                changed_score = utils.change_logits(changed_score)
+                            # if client_index < 5:
+                                # log_probs = utils.change_logits(changed_score)
                             #     log_probs = utils.repalceLogitsWith0(log_probs)
                             # log_probs = utils.replace_logits_with_random(log_probs)
-                            scores_cache.append(changed_score.detach())
-
-
+                            scores_cache.append(log_probs.detach())
 
                     # aggregate
-                    self.consensus = self.aggregate(scores_cache)
-                    print("aggresate")
+                    self.consensus.append(self.aggregate(scores_cache))
 
-                    # digest
+                # digest
+                print("开始digest")
+                for digest_num in range(self.args.digest_epoch):
                     for client_index, model in enumerate(self.client_models):
-                        print("开始digest")
                         # 开始digest
                         model.train()
                         optim = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9,
@@ -212,33 +210,37 @@ class FedMD_standalone_API:
                         # for batch_idx, (images, labels) in enumerate(public_train_data[0]):
                         #     labels = torch.tensor(labels, dtype=torch.long)
                         #     images, labels = images.to(self.device), labels.to(self.device)
-                        log_probs = model(images)
-                        loss = self.custom_cross_entropy(log_probs, self.consensus)
-                        optim.zero_grad()
-                        loss.backward()
-                        optim.step()
-
-                # revisit
-                for _ in range(self.args.local_epoch):
-                    print("revisit")
-                    for client_index, model in enumerate(self.client_models):
-                        for batch_idx, (images, labels) in enumerate(train_data_local_dict[client_index]):
+                        for batch_idx, (images, labels) in enumerate(public_train_data[i]):
                             labels = torch.tensor(labels, dtype=torch.long)
                             images, labels = images.to(self.device), labels.to(self.device)
                             log_probs = model(images)
-                            loss = self.criterion_CE(log_probs, labels)
-
-                            # Update average loss and accuracy
-                            metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
-                            # only one element tensors can be converted to Python scalars
-                            digest_accTop1_avg.update(metrics[0].item())
-                            digest_loss_avg.update(loss.item())
-                            wandb.log({f"digest top1 test Model {client_index} Accuracy": digest_accTop1_avg.value()})
-                            wandb.log({f"digest loss test Model {client_index} Accuracy": digest_loss_avg.value()})
-
+                            loss = self.mse_criterion(log_probs, self.consensus[batch_idx])
+                            print(loss)
                             optim.zero_grad()
                             loss.backward()
                             optim.step()
+
+            # revisit
+            for _ in range(self.args.local_epoch):
+                print("revisit")
+                for client_index, model in enumerate(self.client_models):
+                    model.train()
+                    for batch_idx, (images, labels) in enumerate(train_data_local_dict[client_index]):
+                        labels = torch.tensor(labels, dtype=torch.long)
+                        images, labels = images.to(self.device), labels.to(self.device)
+                        log_probs = model(images)
+                        loss = self.criterion_CE(log_probs, labels)
+
+                        # Update average loss and accuracy
+                        metrics = utils.accuracy(log_probs, labels, topk=(1, 5))
+                        # only one element tensors can be converted to Python scalars
+                        digest_accTop1_avg.update(metrics[0].item())
+                        digest_loss_avg.update(loss.item())
+                        wandb.log({f"digest top1 test Model {client_index} Accuracy": digest_accTop1_avg.value()})
+                        wandb.log({f"digest loss test Model {client_index} Accuracy": digest_loss_avg.value()})
+                        optim.zero_grad()
+                        loss.backward()
+                        optim.step()
 
 
         # 验证客户端的准确性
